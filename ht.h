@@ -431,15 +431,16 @@ void HashTable<K,V,Prober,Hash,KEqual>::insert(const ItemType& p)
             ++this->currItems;
             ++totalItems;
         }
+
+        else{
+            delete newItem;
+        }
     }
 
     // If given key exists
     else if (findResult != nullptr){
         findResult->item.second = p.second; 
     }
-
-
-
 }
 
 // To be completed
@@ -599,7 +600,8 @@ void HashTable<K,V,Prober,Hash,KEqual>::resize()
     unsigned int newSize = 0; 
     for (unsigned int i = 0; i < existingValues.size(); ++i){
         if (existingValues.at(i) != nullptr && existingValues.at(i)->deleted == false){
-            insert(existingValues.at(i)->item); 
+            insert(existingValues.at(i)->item);
+            delete existingValues.at(i);  
             ++newSize;
         }
 
