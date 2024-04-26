@@ -96,4 +96,46 @@ bool boggleHelper(const std::set<std::string>& dict, const std::set<std::string>
 {
 //add your solution here!
 
+	// Base case
+	// If reached end. Only one dimesion needs to be out of bounds to know since we're only going vertical horizontal and diagonal
+	// If we reached the end, that means no need to backtrace, return true
+	if (r >= board.at(0).size() || c >= board.size()){
+		return false; 
+	}
+
+
+	// Add currWord to the current letter
+	std::string currWord = word + board.at(r).at(c); 
+
+	// Check if it is in dictionary
+	if (dict.find(currWord) != dict.end()){
+
+		// If it's not a prefix, then this is the largest word
+		if (prefix.find(currWord) == prefix.end()){
+			result.insert(currWord); 
+			return true;
+			// return boggleHelper(dict, prefix, board, currWord, result, r+dr, c+dc, dr, dc); 
+		}
+
+		// If it is a prefix
+		else if (prefix.find(currWord) != prefix.end()){
+			// If the next recursive call is false, then this is the largest word
+			if (boggleHelper(dict, prefix, board, currWord, result, r+dr, c+dc, dr, dc) == false){
+				result.insert(currWord);
+				return true;
+			}
+
+			return true;
+		}
+		// return true;
+	}
+
+	// If it's not in dictionary Check if it's a prefix
+	else if (prefix.find(currWord) != dict.end()){
+		return boggleHelper(dict, prefix, board, currWord, result, r+dr, c+dc, dr, dc); 
+	}
+	
+
+
+	return false;
 }

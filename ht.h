@@ -35,7 +35,10 @@ struct LinearProber : public Prober<KeyType> {
     {
         // Complete the condition below that indicates failure
         // to find the key or an empty slot
-        if( /* Fill me in */ ) {
+        /* Fill me in */ 
+        // ?*
+        // If we are back at our original location
+        if (this->numProbes_ == this->m_) {
             return this->npos; 
         }
         HASH_INDEX_T loc = (this->start_ + this->numProbes_) % this->m_;
@@ -102,11 +105,18 @@ public:
     // To be completed
     HASH_INDEX_T next() 
     {
+        if (this->numProbes_ == this->m_){
+            return this->npos; 
+        }
 
+        HASH_INDEX_T loc = (this->start_ + (this->numProbes_ * dhstep_) ) % this->m_;
+        // std::cout << this->m_ << " " << loc << std::endl;
 
+        this->numProbes_++; 
+        return loc; 
 
     }
-};
+}; 
 
 // Initialization of static array (do not alter)
 template <typename KeyType, typename Hash2>
@@ -270,6 +280,13 @@ private:
     HASH_INDEX_T mIndex_;  // index to CAPACITIES
 
     // ADD MORE DATA MEMBERS HERE, AS NECESSARY
+    HASH_INDEX_T capacitiesSize; // Size of capacities array
+    double maxLoadingFactor; // resizeAlpha
+    double currLoadingFactor; 
+
+    HASH_INDEX_T currItems; 
+    HASH_INDEX_T totalItems; 
+    int strike; 
 
 };
 
@@ -293,14 +310,29 @@ HashTable<K,V,Prober,Hash,KEqual>::HashTable(
        :  hash_(hash), kequal_(kequal), prober_(prober)
 {
     // Initialize any other data members as necessary
+    
+    
+    this->mIndex_ = 0; 
+    this->table_.resize(CAPACITIES[mIndex_]); 
 
+    maxLoadingFactor = resizeAlpha; 
+    
+    currLoadingFactor = 0; 
+    currItems = 0; 
+    totalItems = 0; 
+
+    strike = 0; 
 }
 
 // To be completed
 template<typename K, typename V, typename Prober, typename Hash, typename KEqual>
 HashTable<K,V,Prober,Hash,KEqual>::~HashTable()
 {
-
+    for (unsigned int i = 0; i < this->table_.size(); ++i){
+        if (this->table_.at(i) != nullptr){
+            delete this->table_.at(i);
+        }
+    }
 }
 
 // To be completed
@@ -308,38 +340,163 @@ template<typename K, typename V, typename Prober, typename Hash, typename KEqual
 bool HashTable<K,V,Prober,Hash,KEqual>::empty() const
 {
 
+    for (unsigned int i = 0; i < this->table_.size(); ++i){
+        // No non-deleted key, no pair/item in that location
+        if (this->table_.at(i) != nullptr){
+            
+            if (this->table_.at(i)->deleted == false){
+                return false;
+            }
+        }
+    }
+
+    return true; 
 }
 
 // To be completed
 template<typename K, typename V, typename Prober, typename Hash, typename KEqual>
 size_t HashTable<K,V,Prober,Hash,KEqual>::size() const
 {
+    size_t result = 0; 
 
+    // std::cout << "ITS CALLING" << std::endl;
+    for (unsigned int i = 0; i < this->table_.size(); ++i){
+        if ( (this->table_.at(i) != nullptr) && (this->table_.at(i)->deleted == false) ){
+            ++result; 
+        }
+    }
+        
+    return result; 
 }
 
 // To be completed
+/**
+ * @brief Inserts a new item into the map, or, if an item with the
+ *        given key already exists, it updates the Value of that item
+ *        with the second value of the pair, p
+ * 
+ * @param p Pair to insert  
+ * @throw std::logic_error If no free location can be found
+ */
 template<typename K, typename V, typename Prober, typename Hash, typename KEqual>
 void HashTable<K,V,Prober,Hash,KEqual>::insert(const ItemType& p)
 {
+    this->currLoadingFactor = static_cast<double>(totalItems) / static_cast<double>(this->table_.size());
+
+    if (currLoadingFactor >= maxLoadingFactor){
+        resize();
+    }
+
+    // If the given key already exists in the table
+    HashItem* findResult = internalFind(p.first); 
+
+    // If given key does not exist 
+    if (findResult == nullptr){
+
+        // Create new item
+        HashItem* newItem = new HashItem(p);
+
+        // Probe result
+        HASH_INDEX_T probeResult = probe(p.first); 
+
+        // If probeResult is npos
+        if (probeResult == npos){
+
+            // If loadingFactor is 1
+            if (maxLoadingFactor == 1){
+                resize();
+                
+                // Probe again
+                probeResult = probe(p.first); 
+
+                if (probeResult == npos){
+                    delete newItem; 
+                    throw std::logic_error("No free location available xddx"); 
+                }
+
+                table_.at(probeResult) = newItem; 
+                ++this->currItems;
+                ++totalItems;
+            }
+
+            else{
+                delete newItem;
+                throw std::logic_error("No free location available xddx"); 
+            }
+        }
+
+        // If probeResult is not npos
+        else if (probeResult != npos){
+            table_.at(probeResult) = newItem;
+            ++this->currItems;
+            ++totalItems;
+        }
+    }
+
+    // If given key exists
+    else if (findResult != nullptr){
+        findResult->item.second = p.second; 
+    }
+
 
 
 }
 
 // To be completed
+/**
+ * @brief Removes (marks as deleted) the item with the given key.  
+ * Does nothing if an item with the given key does not exist.
+ * 
+ * @param key 
+ */
 template<typename K, typename V, typename Prober, typename Hash, typename KEqual>
 void HashTable<K,V,Prober,Hash,KEqual>::remove(const KeyType& key)
 {
+    // find if key exists
+    HashItem* findResult = internalFind(key); 
 
+    // If it exists
+    if (findResult != nullptr){
 
+        // If it hasn't been deleted
+        if (findResult->deleted == false){
+            // // should not be nullptr
+            // HashItem* wantedItem = internalFind(key); 
+            
+            // // Personal sanity measure if it happens
+            // if (wantedItem == nullptr){
+            //     std::cout << "ERROR - WANTED ITEM IS NULL IN REMOVE WHEN IT SHOULD NOT BE" << std::endl; 
+            //     return; 
+            // }
+
+            // Assign watnedItem as deleted 
+            findResult->deleted = true; 
+
+            // Remove one item
+            --this->currItems; 
+
+            // Adjust loading factor
+            this->currLoadingFactor = static_cast<double>(this->currItems) / static_cast<double>(this->table_.size()); 
+        }
+
+    }
 }
 
 
 // Complete
+/**
+ * @brief Finds an item with the given key and returns a pointer 
+ * to the key,value pair
+ * 
+ * @param key 
+ * @return ItemType const* nullptr is returned if the key does not exist
+ */
 template<typename K, typename V, typename Prober, typename Hash, typename KEqual>
 typename HashTable<K,V,Prober,Hash,KEqual>::ItemType const * HashTable<K,V,Prober,Hash,KEqual>::find(const KeyType& key) const
 {
     HASH_INDEX_T h = this->probe(key);
-    if((npos == h) || nullptr == table_[h] ){
+    std::cout << "FIND H " << h << std::endl; 
+    if((npos == h) || nullptr == table_[h] || table_.at(h)->deleted == true){
         return nullptr;
     }
     return &table_[h]->item;
@@ -357,6 +514,7 @@ typename HashTable<K,V,Prober,Hash,KEqual>::ItemType * HashTable<K,V,Prober,Hash
 }
 
 // Complete
+
 template<typename K, typename V, typename Prober, typename Hash, typename KEqual>
 const typename HashTable<K,V,Prober,Hash,KEqual>::ValueType& HashTable<K,V,Prober,Hash,KEqual>::at(const KeyType& key) const
 {
@@ -389,9 +547,16 @@ typename HashTable<K,V,Prober,Hash,KEqual>::ValueType& HashTable<K,V,Prober,Hash
 }
 
 // Complete
+/**
+ * @brief Helper routine to find a given key
+ * 
+ * @param key 
+ * @return HashItem* returns nullptr if key does not exist
+ */
 template<typename K, typename V, typename Prober, typename Hash, typename KEqual>
 typename HashTable<K,V,Prober,Hash,KEqual>::HashItem* HashTable<K,V,Prober,Hash,KEqual>::internalFind(const KeyType& key) const
 {
+    
     HASH_INDEX_T h = this->probe(key);
     if((npos == h) || nullptr == table_[h] ){
         return nullptr;
@@ -401,14 +566,75 @@ typename HashTable<K,V,Prober,Hash,KEqual>::HashItem* HashTable<K,V,Prober,Hash,
 
 
 // To be completed
+/**
+ * @brief Resizes the hash table replacing the old with a new
+ * table of the next prime size given in CAPACITIES.  Must rehash
+ * all non-deleted items while freeing all deleted items.
+ * 
+ * Must run in O(m) where m is the new table size
+ * 
+ * @throws std::logic_error if no more CAPACITIES exist
+ */
 template<typename K, typename V, typename Prober, typename Hash, typename KEqual>
 void HashTable<K,V,Prober,Hash,KEqual>::resize()
 {
+    // std::cout << "Resize index: " << mIndex_ << std::endl; 
+    // std::cout << "Curr size: " << table_.size() << std::endl;
+    // ***
+    // Take all items in the old tables and store them somewhere
+    if (this->CAPACITIES[this->mIndex_] == 1685759167){
+        throw std::logic_error("No free location available"); 
+    }
 
+    ++mIndex_; 
+
+    std::vector<HashItem*> existingValues; 
+    for (unsigned int i = 0; i < this->table_.size(); ++i){
+        existingValues.push_back(table_.at(i));
+        table_.at(i) = nullptr;  
+    }
+
+    table_.assign(CAPACITIES[mIndex_], nullptr); 
+
+    unsigned int newSize = 0; 
+    for (unsigned int i = 0; i < existingValues.size(); ++i){
+        if (existingValues.at(i) != nullptr && existingValues.at(i)->deleted == false){
+            insert(existingValues.at(i)->item); 
+            ++newSize;
+        }
+
+        else if (existingValues.at(i) != nullptr && existingValues.at(i)->deleted == true){
+            delete existingValues.at(i); 
+        }
+
+        else if (existingValues.at(i) == nullptr){
+            continue; 
+        }
+    }
+
+    currItems = newSize; 
+    totalItems = newSize;
+    currLoadingFactor = static_cast<double>(currItems) / static_cast<double>(table_.size()); 
+
+    // table_.assign(newsize, nullptr)
+    // Iterate over old data vector
+    // If it's not nullptr, not deleted, insert
+    // If it's not nullptr, deleted, delete, set to nullptr
+    // If it's nullptr go to next element
     
 }
 
 // Almost complete
+/**
+ * @brief Performs the probing sequence and returns the index
+ * of the table location with the given key or the location where
+ * key can be inserted (i.e. the index now contains nullptr) but is
+ * available.
+ * 
+ * @param key 
+ * @return returns npos is the key does not exist and
+ * no free location is available
+ */
 template<typename K, typename V, typename Prober, typename Hash, typename KEqual>
 HASH_INDEX_T HashTable<K,V,Prober,Hash,KEqual>::probe(const KeyType& key) const
 {
@@ -424,7 +650,7 @@ HASH_INDEX_T HashTable<K,V,Prober,Hash,KEqual>::probe(const KeyType& key) const
         }
         // fill in the condition for this else if statement which should 
         // return 'loc' if the given key exists at this location
-        else if(/* Fill me in */) {
+        else if(table_.at(loc)->item.first == key && table_.at(loc)->deleted == false) {
             return loc;
         }
         loc = prober_.next();
