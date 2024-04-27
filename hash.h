@@ -69,26 +69,37 @@ struct MyStringHash {
         for (unsigned int i = 0; i < 5; ++i){
 
             for (unsigned int j = 0; j < allSubstrings[5-i].size(); ++j){
+                //allSubstrings[5-i].size()-1-j
                 // std::cout << "Base: " << j << " " << "Val: " <<  allSubstrings[5-i].at(allSubstrings[5-i].size()-1-j) << std::endl;
                 // std::cout << pow(36, j) << " " << letterDigitToNumber(allSubstrings[5-i].at(allSubstrings[5-i].size()-1-j)) << std::endl;
-                // std::cout << (pow(36,j) * letterDigitToNumber(allSubstrings[5-i].at(allSubstrings[5-i].size()-1-j))) << std::endl;
-               
-                HASH_INDEX_T val = (pow(36,j) * letterDigitToNumber(allSubstrings[5-i].at(allSubstrings[5-i].size()-1-j)));
-                // std::cout << val << "VAL";
+                // std::cout << letterDigitToNumber(allSubstrings[5-i].at(allSubstrings[5-i].size()-1-j)) << std::endl;
+                // // std::cout << (pow(36,j) * letterDigitToNumber(allSubstrings[5-i].at(allSubstrings[5-i].size()-1-j))) << std::endl;
+                HASH_INDEX_T val;
+                if (j <= 4){
+                    val = (pow(36,j) * letterDigitToNumber(allSubstrings[5-i].at(allSubstrings[5-i].size()-1-j)));
+                }
+
+                else{
+                    val = 60466176 * letterDigitToNumber(allSubstrings[5-i].at(allSubstrings[5-i].size()-1-j));
+                }
+                
+                // std::cout << " Val" << val << std::endl;
+                // std::cout << pow(36,j) << " " << letterDigitToNumber(allSubstrings[5-i].at(allSubstrings[5-i].size()-1-j)) << std::endl;
                 w[4-i] += val; //(pow(36,j) * letterDigitToNumber(allSubstrings[5-i].at(allSubstrings[5-i].size()-1-j)));
-                // std::cout << w[4-i]; 
+                // std::cout << w[4-i] << std::endl;
                 // std::cout << 5-i << std::endl; 
                 // std::cout << w[4-i] << std::endl;
             }
 
             if (allSubstrings[5-i].size() == 0){
-                w[4-i] = 0; 
+                w[4-i] = 0;
+    
             }
         }
 
         // Printing out w[i], .., w[6]
         // for (unsigned int i = 0; i < 5; ++i){
-        //     std::cout << "w[" << i << "] = " << w[i] << std::endl;  
+        //     std::cout << "w[" << i << "] = " << w[i] << std::endl;
         // }
 
         // Creating h[k]
